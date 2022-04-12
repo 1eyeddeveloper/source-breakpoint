@@ -58,12 +58,12 @@
           scope += `[${prop}]`; index = -1; a = a[prop], b = b[prop]; a_keys = Object.keys(a); continue;
         }
       };
-      scope = arr[arr.length - 1]; index = saveindex[scope] + 1; a = STALK_KIT.getnestedobj(targetobj, scope), b = STALK_KIT.getnestedobj(copy, scope); a_keys = Object.keys(a); arr.pop();
+      scope = arr[arr.length - 1]; index = saveindex[scope] + 1; a = LOGGER.getnestedobj(targetobj, scope), b = LOGGER.getnestedobj(copy, scope); a_keys = Object.keys(a); arr.pop();
     }
     return copy;
   }
-  /* deepsaveobjaddr directly saves an object and all its nested properties to a map. */
-  LOGGER.deepsaveobjaddr = function(stalker_ref, datavalue, varname) {
+  /* deepsaveobjaddr directly saves an object and all its nested props to a map. */
+  LOGGER.deepsaveobjaddr = function (stalker_ref, datavalue, varname) {
     stalker_ref.set(varname, datavalue);
     if (!(datavalue instanceof Object)) return stalker_ref;
     let index = 0, a = datavalue, a_keys = Object.keys(a), fullname = varname, scope = '', arr = [], saveindex = {};
@@ -77,8 +77,60 @@
           continue;
         }
       };
-      scope = arr[arr.length - 1]; fullname = varname + scope; index = saveindex[scope] + 1; a = STALK_KIT.getnestedobj(datavalue, scope); a_keys = Object.keys(a); arr.pop();
+      scope = arr[arr.length - 1]; fullname = varname + scope; index = saveindex[scope] + 1; a = LOGGER.getnestedobj(datavalue, scope); a_keys = Object.keys(a); arr.pop();
     }
     return stalker_ref;
+  }
+  function isactualNaN(value) {
+    return (typeof value === 'number' && isNaN(value));
+  }
+  /* compares props of 2 objs which start out identical. Changes detected on the variable obj (recon), are applied to the reference obj (stalker_ref) to keep them synced */
+  LOGGER.watchvarchanges = function (recon, stalker_ref, varname) {
+    let newvalue = recon[varname], oldvalue = stalker_ref[varname];
+    if (isactualNaN(newvalue) && isactualNaN(oldvalue)) {
+
+    } else if (newvalue instanceof Object && newvalue === stalker_ref.get(varname)) {
+      let fullname = varname, a = oldvalue, b = newvalue, a_keys = Object.keys(a), b_keys = Object.keys(b), scope = '', arr = [], index = a_keys.length - 1, saveindex = {};
+      while (a instanceof Object) {
+        if (b instanceof Function) {/* Functions are not inspected */
+          return;
+        } else {
+          for (; index >= 0; index--) {/* due to deleting, use desc iteration */
+            let prop = a_keys[index];
+            if (prop in b) {
+              if (b[prop] instanceof Object && b[prop] === stalker_ref.get(fullname + `[${prop}]`)) {
+                saveindex[scope] = index; arr.push(scope);
+                scope += `[${prop}]`, fullname = varname + scope; a = a[prop], b = b[prop]; a_keys = Object.keys(a), b_keys = Object.keys(b); index = a_keys.length;
+                continue;
+              } else {
+                if (a[prop] !== b[prop]) {
+                  let value = LOGGER.stringify(b[prop]);
+                  console.log(`${fullname}[${prop}] was reassigned value: ${value}`)
+                  a[prop] = LOGGER.deepcloneobj(b[prop]); LOGGER.deepsaveobjaddr(stalker_ref, b[prop], `${fullname}[${prop}]`);
+                }
+              }
+            } else {/* if an old prop is nonexistent in new object, it is deleted */
+              console.log(`${fullname}[${prop}] = ${LOGGER.stringify(a[prop])} has been deleted!`);
+              delete a[prop]; stalker_ref.delete(`${fullname}[${prop}]`);
+            }
+          };
+          b_keys.forEach(prop => {/* to detect creation of new prop */
+            if (!(prop in a)) {
+              console.log(`created new property ${fullname}[${prop}] = ${LOGGER.stringify(b[prop])};`);
+              a[prop] = LOGGER.deepcloneobj(b[prop]); LOGGER.deepsaveobjaddr(stalker_ref, b[prop], `${fullname}[${prop}]`)
+            }
+          });
+          /* climb up the object prop nesting when current prop in not an obj  */
+          scope = arr[arr.length - 1], fullname = varname + scope; index = saveindex[scope] - 1; a = LOGGER.getnestedobj(oldvalue, scope), b = LOGGER.getnestedobj(newvalue, scope); a_keys = Object.keys(a), b_keys = Object.keys(b); arr.pop();
+        }
+      }
+    } else {
+      if (newvalue !== oldvalue) {
+        stalker_ref[varname] = LOGGER.deepcloneobj(newvalue);
+        stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, newvalue, varname);
+        newvalue = LOGGER.stringify(newvalue);
+        console.log(`${varname} was reassigned the value: ${newvalue}`)
+      }
+    }
   }
 })();
