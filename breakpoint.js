@@ -28,7 +28,7 @@
     return obj;
   }
   /* deepcloneobj takes a targetobj and iterates its properties deeply until it has cloned the entirety of the object, of which it returns the cloned object. */
-  LOGGER.deepcloneobj = function(targetobj) {
+  LOGGER.deepcloneobj = function (targetobj) {
     if (!(targetobj instanceof Object)) { return targetobj }; let emptyobject;
     /* clones arrays, objects and maps */
     if (targetobj instanceof Array) {
@@ -61,5 +61,24 @@
       scope = arr[arr.length - 1]; index = saveindex[scope] + 1; a = STALK_KIT.getnestedobj(targetobj, scope), b = STALK_KIT.getnestedobj(copy, scope); a_keys = Object.keys(a); arr.pop();
     }
     return copy;
+  }
+  /* deepsaveobjaddr directly saves an object and all its nested properties to a map. */
+  LOGGER.deepsaveobjaddr = function(stalker_ref, datavalue, varname) {
+    stalker_ref.set(varname, datavalue);
+    if (!(datavalue instanceof Object)) return stalker_ref;
+    let index = 0, a = datavalue, a_keys = Object.keys(a), fullname = varname, scope = '', arr = [], saveindex = {};
+    while (a instanceof Object) {
+      for (; index !== a_keys.length; index++) {
+        let prop = a_keys[index];
+        stalker_ref.set(`${fullname}[${prop}]`, a[prop]);
+        if (a[prop] instanceof Object) {
+          saveindex[scope] = index; arr.push(scope);
+          scope += `[${prop}]`, fullname = varname + scope; index = -1; a = a[prop]; a_keys = Object.keys(a);
+          continue;
+        }
+      };
+      scope = arr[arr.length - 1]; fullname = varname + scope; index = saveindex[scope] + 1; a = STALK_KIT.getnestedobj(datavalue, scope); a_keys = Object.keys(a); arr.pop();
+    }
+    return stalker_ref;
   }
 })();
