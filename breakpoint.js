@@ -27,4 +27,39 @@
     })
     return obj;
   }
+  /* deepcloneobj takes a targetobj and iterates its properties deeply until it has cloned the entirety of the object, of which it returns the cloned object. */
+  LOGGER.deepcloneobj = function(targetobj) {
+    if (!(targetobj instanceof Object)) { return targetobj }; let emptyobject;
+    /* clones arrays, objects and maps */
+    if (targetobj instanceof Array) {
+      emptyobject = () => new Array();
+    } else if (targetobj instanceof Map) {
+      let mapstruct = JSON.stringify([...targetobj]);
+      emptyobject = () => new Map(JSON.parse(mapstruct));
+    } else {
+      emptyobject = () => new Object()
+    };
+    let copy = Object.assign(emptyobject(), targetobj)
+    let index = 0, a = targetobj, b = copy, a_keys = Object.keys(a), scope = '', arr = [], saveindex = {};
+    while (a instanceof Object) {
+      for (; index !== a_keys.length; index++) {
+        let prop = a_keys[index];
+        if (a[prop] instanceof Object) {
+          if (a[prop] instanceof Array) {
+            emptyobject = () => new Array();
+          } else if (a[prop] instanceof Map) {
+            let mapstruct = JSON.stringify([...a[prop]]);
+            emptyobject = () => new Map(JSON.parse(mapstruct));
+          } else {
+            emptyobject = () => new Object()
+          };
+          b[prop] = Object.assign(emptyobject(), a[prop]);
+          saveindex[scope] = index; arr.push(scope);
+          scope += `[${prop}]`; index = -1; a = a[prop], b = b[prop]; a_keys = Object.keys(a); continue;
+        }
+      };
+      scope = arr[arr.length - 1]; index = saveindex[scope] + 1; a = STALK_KIT.getnestedobj(targetobj, scope), b = STALK_KIT.getnestedobj(copy, scope); a_keys = Object.keys(a); arr.pop();
+    }
+    return copy;
+  }
 })();
