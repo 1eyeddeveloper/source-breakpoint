@@ -133,4 +133,25 @@
       }
     }
   }
+
+  /* The breakpoint functions */
+  const ancestor = new Map();
+  function stalker_init(Recon) {
+    /* initialize awareness of function scope */
+    if (!Recon.id) throw new Error('Please register the encapsulating function as a static id property to the recombination class');
+    stalker_init.id = Recon.id.name; stalker_init.done = false;
+
+    let stalker_ref = new Recon(); let inscope = '';
+    Object.keys(stalker_ref).forEach(key => {
+      inscope += `${key}: ${LOGGER.stringify(stalker_ref[key])}, `;
+      if (stalker_ref[key]) {
+        stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, stalker_ref[key], key);
+        if (stalker_ref[key] instanceof Object && !stalker_ref[key].querySelector && !(stalker_ref[key] instanceof Function) && !(stalker_ref[key] instanceof Map)) {
+          stalker_ref[key] = LOGGER.deepcloneobj(stalker_ref[key]);
+        }
+      }
+    });
+    console.log('variables encountered in scope: (', inscope, ')')
+    return stalker_ref;
+  };
 })();
