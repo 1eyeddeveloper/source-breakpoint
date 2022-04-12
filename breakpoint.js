@@ -143,7 +143,7 @@
 
     let stalker_ref = new Recon(); let inscope = '';
     Object.keys(stalker_ref).forEach(key => {
-      inscope += `${key}: ${LOGGER.stringify(stalker_ref[key])}, `;
+      inscope += `${key}, `;
       if (stalker_ref[key]) {
         stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, stalker_ref[key], key);
         if (stalker_ref[key] instanceof Object && !stalker_ref[key].querySelector && !(stalker_ref[key] instanceof Function) && !(stalker_ref[key] instanceof Map)) {
@@ -154,4 +154,32 @@
     console.log('variables encountered in scope: (', inscope, ')')
     return stalker_ref;
   };
+  
+  /* scopeinspect wraps a functions and communicates to stalker when function scopes are exited  */
+  function scopeinspect(somefunc){
+    let returnval = function(...arr){
+      somefunc.apply(null, arr);
+    }
+    let recon = [...ancestor.keys()][ancestor.size-1];
+    if(stalker_init.id == somefunc.name) ancestor.delete(recon);
+    return returnval;
+  }
+  
+  /* applies LOGGER.watchvarchanges on each property of the reconstruction object both for current scope, and ancestor scopes  */
+  function stalker(Recon, stalker_ref) {
+    if(!stalker_init.done){
+      ancestor.set(Recon, stalker_ref); stalker_init.done = true
+    }
+    let recon = new Recon();
+    //after reconstruction...
+    Object.keys(recon).forEach(varname => {
+      LOGGER.watchvarchanges(recon, stalker_ref, varname);
+    });
+    for (const [recon, stalker_ref] of ancestor) {
+      let r = new recon();
+      Object.keys(r).forEach(varname => {
+        LOGGER.watchvarchanges(r, stalker_ref, varname);
+      });
+    }
+  }
 })();
