@@ -1,0 +1,41 @@
+const mapname = new Map();
+function stringify (value) {
+  if (value) {
+    if (value instanceof RegExp) {
+      return value.toString();
+    } else if (value instanceof Function) {
+      return value.toString();
+    } else if (value instanceof Map) {
+      return `new Map(${JSON.stringify([...value.entries()])})`;
+    } else if (value instanceof Array || value instanceof Object) {
+      return JSON.stringify(value);
+    } else {
+      return `${value}`;
+    }
+  } else if (typeof value !== 'undefined') return value + '';
+}
+Map.prototype.sett = Map.prototype.set;
+Map.prototype.set = function (key, value) {
+  let id = mapname.gett(this);
+  if (id) console.log(`executed: ${id}.set(${stringify(key)}, ${stringify(value)})`);
+  return this.sett(key, value);
+};
+Map.prototype.gett = Map.prototype.get;
+Map.prototype.get = function (key) {
+  let id = mapname.gett(this);
+  if (id) console.log(`executed: ${id}.get(${stringify(key)})`);
+  return this.gett(key);
+}
+Map.prototype.deletee = Map.prototype.delete;
+Map.prototype.delete = function (key) {
+  let id = mapname.gett(this);
+  if (id) console.log(`executed: ${id}.delete(${stringify(key)})`);
+  return this.deletee(key);
+}
+Map.prototype.clearr = Map.prototype.clear;
+Map.prototype.clear = function () {
+  let id = mapname.gett(this);
+  if (id) console.log(`executed: ${id}.clear()`);
+  return this.clearr();
+}
+module.exports = mapname;

@@ -8,6 +8,7 @@ A little convention is required to utilize the stalker module. Within a function
 Example: [basic.js](./basic.js):
 
 ```js
+//node.js
 const {stalker, stalker_init, scopeinspect} = require('./breakpoint.js');
 function tester(){
   let edit, update, val = 'production', temp;
@@ -34,6 +35,7 @@ tester(); /* source breakpoint tokens monitor variable changes within tester fun
 Example [nestedscope.js_](./nestedscope.js):
 
 ```js
+//node.js
 const {stalker, stalker_init, scopeinspect} = require('./sorce-breakpoint');
 scopeinspect(
 function (){
