@@ -135,13 +135,13 @@
   }
 
   /* The breakpoint functions */
-  const ancestor = new Map();
+  const ancestor = new Map(), scopes = new Map();
   function stalker_init(Recon) {
     /* initialize awareness of function scope */
     if (!Recon.id) throw new Error('Please register the encapsulating function as a static id property to the recombination class');
-    stalker_init.id = Recon.id.name; stalker_init.done = false;
-
-    let stalker_ref = new Recon(); let inscope = '';
+    scopes.set(Recon.id.newname, Recon);
+    let stalker_ref = new Recon(); ancestor.set(Recon, stalker_ref);
+    let inscope = '';
     Object.keys(stalker_ref).forEach(key => {
       inscope += `${key}, `;
       if (stalker_ref[key]) {
@@ -157,19 +157,17 @@
   
   /* scopeinspect wraps a functions and communicates to stalker when function scopes are exited  */
   function scopeinspect(somefunc){
-    let returnval = function(...arr){
+    let returnval = function x(...arr){
+      x.newname = somefunc.name || 'anonymous';
       somefunc.apply(null, arr);
+      let recon = scopes.get(somefunc.name);
+      if(recon) ancestor.delete(recon);
     }
-    let recon = [...ancestor.keys()][ancestor.size-1];
-    if(stalker_init.id == somefunc.name) ancestor.delete(recon);
     return returnval;
   }
   
   /* applies LOGGER.watchvarchanges on each property of the reconstruction object both for current scope, and ancestor scopes  */
   function stalker(Recon, stalker_ref) {
-    if(!stalker_init.done){
-      ancestor.set(Recon, stalker_ref); stalker_init.done = true
-    }
     let recon = new Recon();
     //after reconstruction...
     Object.keys(recon).forEach(varname => {
@@ -182,4 +180,5 @@
       });
     }
   }
+  module.exports = {scopeinspect, stalker, stalker_init};
 })();
