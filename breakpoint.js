@@ -12,7 +12,9 @@ const mapname = require('./reconfig');
         return `new Map(${JSON.stringify([...value.entries()])})`;
       } else if (value instanceof Array || value instanceof Object) {
         return JSON.stringify(value);
-      } else {
+      } else if(typeof value == 'string') {
+        return `"${value}"`;
+      } else{
         return `${value}`;
       }
     } else if (typeof value !== 'undefined') return value + '';/* stringify null values */
@@ -143,7 +145,7 @@ const mapname = require('./reconfig');
   }
 
   /* The breakpoint functions */
-  const scope = new Map();
+  const scope = new Map(); const scopename = {}; let count = 0;
   function stalker_init(Recon) {
     let stalker_ref = new Recon();
     let inscope = '';
@@ -168,7 +170,10 @@ const mapname = require('./reconfig');
       let x = scope[inner] = new Map([...olx]);
       x.set(Recon, stalker_ref);
     }
-    
+    let funcname = new Error().stack.split("\n")[2].trim().split(" ")[1];
+    if(funcname.includes('/') || funcname.includes('\\')) funcname = 'anonymous' + count++;
+    scopename.name_ = stalker_ref.name_ = funcname;/* use symbol */
+    console.log(`\n------------ function ${funcname}() started running  ------------`);
     console.log('variables encountered in scope: (', inscope, ')')
     return stalker_ref;
   };
@@ -177,6 +182,14 @@ const mapname = require('./reconfig');
 
   /* applies LOGGER.watchvarchanges on each property of the reconstruction object both for current scope, and ancestor scopes  */
   function stalker(Recon, stalker_ref) {
+    if(scopename.name_){
+      let funcname = scopename.name_;
+      if(funcname != stalker_ref.name_){
+        console.log(`------------ function ${funcname}() has returned  ------------\n`);
+        scopename.name_ = stalker_ref.name_;
+        /* wont work for anonymous functions since they share same name */
+      };
+    }
     let recon = new Recon();
     //after reconstruction...
     Object.keys(recon).forEach(varname => {
