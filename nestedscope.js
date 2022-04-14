@@ -1,9 +1,8 @@
-const {stalker, stalker_init, scopeinspect} = require('./sorce-breakpoint');
-scopeinspect(
-function (){
+const {stalker, stalker_init} = require('./breakpoint.js');
+(function (){
   let edit, update, val = 'production', temp;
   class Recon extends Map{
-    static id = {newname: 'parent'};/* id is basically object with newname property */
+    static id = ['a']; /* id is an array of strings reflecting ids of scopes the function has access to. 1st entry reflects current id, succeding entries reflect ids for succeding higher scopes respectively */
     constructor() {
       super();
       this.edit = edit, this.update = update, this.val = val, this.temp = temp;
@@ -14,7 +13,7 @@ function (){
   function nesttest(){
     let edit, date = new Date().toDateString(), post = { title: 'Hello World' };
     class Recon extends Map{
-      static id = nesttest;
+      static id = ['b', 'a'];/* id has 2 entries: the 1st is the id of this scope, the 2nd is the id of the parent scope */
       constructor(){
         super();
         this.edit = edit, this.date = date, this.post = post
@@ -24,7 +23,6 @@ function (){
     edit = true; post.date = date; ;stalker(Recon, REF); /* edit variable here masks parent scopes edit variable */
     val = 'development', update = 'v1.2.1'; ;stalker(Recon, REF); /* stalker tracks all scoped vars */
   }
-  nesttest = scopeinspect(nesttest);
 
   edit = { state: true, value: 'groups'}, update = null; ;stalker(Recon, REF);
   val = edit.value, temp = new Map();

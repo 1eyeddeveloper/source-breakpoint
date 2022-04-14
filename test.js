@@ -1,10 +1,10 @@
-const {stalker, stalker_init, scopeinspect} = require('./breakpoint.js');
+const {stalker, stalker_init} = require('./breakpoint.js');
 //node.js
 function tester(){
   let edit, update, val = 'production', temp;
   /* To monitor variables, as above, create a reconstruction class like this */
   class Recon extends Map{
-    static id = tester;/* id = enclosing function */
+    static id = ['a'];/* give current scope an id passed as one string entry in an array */
     constructor() {
       super();
       this.edit = edit, this.update = update, this.val = val, this.temp = temp;
@@ -19,6 +19,5 @@ function tester(){
   edit.value.set('happy', 'holidays');
   temp.set('holidays', {event: 'Christmas'}); ;stalker(Recon, REF);
 };
-tester = scopeinspect(tester);
 
 tester(); /* source breakpoint tokens monitor variable changes within tester function */
