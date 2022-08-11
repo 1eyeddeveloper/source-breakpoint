@@ -1,4 +1,4 @@
-const mapname = require('./reconfig');
+const deepclone = require('./cloner.js');
 (function () {
 
   const LOGGER = {};
@@ -31,47 +31,7 @@ const mapname = require('./reconfig');
     })
     return obj;
   }
-  /* deepcloneobj takes a targetobj and iterates its properties deeply until it has cloned the entirety of the object, of which it returns the cloned object. */
-  LOGGER.deepcloneobj = function (targetobj, varname) {
-    if (!(targetobj instanceof Object)) { return targetobj }; let emptyobject;
-    /* clones arrays, objects and maps */
-    let fullname = varname;
-    if (targetobj instanceof Array) {
-      emptyobject = new Array();
-    } else if (targetobj instanceof Map) {
-      let mapstruct = JSON.stringify([...targetobj]);
-      emptyobject = new Map(JSON.parse(mapstruct));
-      if (varname) mapname.sett(targetobj, fullname);
-    } else {
-      emptyobject = new Object()
-    };
-    let copy = Object.assign(emptyobject, targetobj)
-    let index = 0, a = targetobj, b = copy, a_keys = Object.keys(a), scope = '', arr = [], saveindex = {};
-    while (a instanceof Object) {
-      for (; index !== a_keys.length; index++) {
-        let prop = a_keys[index];
-        if (a[prop] instanceof Object) {
-          if (a[prop] instanceof Array) {
-            emptyobject = new Array();
-          } else if (a[prop] instanceof Map) {
-            let mapstruct = JSON.stringify([...a[prop]]);
-            emptyobject = new Map(JSON.parse(mapstruct));
-          } else {
-            emptyobject = new Object()
-          };
-          b[prop] = Object.assign(emptyobject, a[prop]);
-          saveindex[scope] = index; arr.push(scope);
-          scope += `[${prop}]`, fullname = varname + scope;
-          index = -1; a = a[prop], b = b[prop]; a_keys = Object.keys(a);
-
-          if (a instanceof Map && varname) mapname.sett(a, fullname);
-          continue;
-        }
-      };
-      scope = arr[arr.length - 1]; index = saveindex[scope] + 1; a = LOGGER.getnestedobj(targetobj, scope), b = LOGGER.getnestedobj(copy, scope); a_keys = Object.keys(a); arr.pop();
-    }
-    return copy;
-  }
+  
   /* deepsaveobjaddr directly saves an object and all its nested props to a map. */
   LOGGER.deepsaveobjaddr = function (stalker_ref, datavalue, varname) {
     stalker_ref.sett(varname, datavalue);
@@ -95,6 +55,7 @@ const mapname = require('./reconfig');
     return (typeof value === 'number' && isNaN(value));
   }
   /* compares props of 2 objs which start out identical. Changes detected on the variable obj (recon), are applied to the reference obj (stalker_ref) to keep them synced */
+  /* Todo: As of now watchvarchanges don't watch changes of the contents of a Uint8Array. Fix this when it becomes important to do so */
   LOGGER.watchvarchanges = function (recon, stalker_ref, varname) {
     let newvalue = recon[varname], oldvalue = stalker_ref[varname];
     if (isactualNaN(newvalue) && isactualNaN(oldvalue)) {
@@ -116,7 +77,7 @@ const mapname = require('./reconfig');
                 if (a[prop] !== b[prop]) {
                   let value = LOGGER.stringify(b[prop]);
                   console.log(`${fullname}[${prop}] was reassigned value: ${value}`)
-                  a[prop] = LOGGER.deepcloneobj(b[prop], `${fullname}[${prop}]`); LOGGER.deepsaveobjaddr(stalker_ref, b[prop], `${fullname}[${prop}]`);
+                  a[prop] = deepclone(b[prop], `${fullname}[${prop}]`); LOGGER.deepsaveobjaddr(stalker_ref, b[prop], `${fullname}[${prop}]`);
                 }
               }
             } else {/* if an old prop is nonexistent in new object, it is deleted */
@@ -127,7 +88,7 @@ const mapname = require('./reconfig');
           b_keys.forEach(prop => {/* to detect creation of new prop */
             if (!(prop in a)) {
               console.log(`created new property ${fullname}[${prop}] = ${LOGGER.stringify(b[prop])};`);
-              a[prop] = LOGGER.deepcloneobj(b[prop], `${fullname}[${prop}]`); LOGGER.deepsaveobjaddr(stalker_ref, b[prop], `${fullname}[${prop}]`)
+              a[prop] = deepclone(b[prop], `${fullname}[${prop}]`); LOGGER.deepsaveobjaddr(stalker_ref, b[prop], `${fullname}[${prop}]`)
             }
           });
           /* climb up the object prop nesting when current prop in not an obj  */
@@ -136,7 +97,7 @@ const mapname = require('./reconfig');
       }
     } else {
       if (newvalue !== oldvalue) {
-        stalker_ref[varname] = LOGGER.deepcloneobj(newvalue, varname);
+        stalker_ref[varname] = deepclone(newvalue, varname);
         stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, newvalue, varname);
         newvalue = LOGGER.stringify(newvalue);
         console.log(`${varname} was reassigned the value: ${newvalue}`)
@@ -145,7 +106,7 @@ const mapname = require('./reconfig');
   }
 
   /* The breakpoint functions */
-  const scope = new Map(); const scopename = {}; let count = 0;
+  const scope = {}; const scopename = {}; let count = 0;
   function stalker_init(Recon) {
     let stalker_ref = new Recon();
     let inscope = '';
@@ -154,7 +115,7 @@ const mapname = require('./reconfig');
       if (stalker_ref[key]) {
         stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, stalker_ref[key], key);
         if (stalker_ref[key] instanceof Object && !(stalker_ref[key] instanceof Function) && !(stalker_ref[key] instanceof Map)) {
-          stalker_ref[key] = LOGGER.deepcloneobj(stalker_ref[key], key)
+          stalker_ref[key] = deepclone(stalker_ref[key], key)
         }
       }
     });
