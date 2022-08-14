@@ -1,37 +1,7 @@
-const deepclone = require('./cloner.js');
+const {deepclone, getnestedobj} = require('./cloner.js');
+const { stringify } = require('./stringify.js');
 (function () {
-
   const LOGGER = {};
-  LOGGER.stringify = function (value) {
-    if (value) {
-      if (value instanceof RegExp) {
-        return value.toString();
-      } else if (value instanceof Function) {
-        return value.toString();
-      } else if (value instanceof Map) {
-        return `new Map(${JSON.stringify([...value.entries()])})`;
-      } else if (value instanceof Array || value instanceof Object) {
-        return JSON.stringify(value);
-      } else if(typeof value == 'string') {
-        return `"${value}"`;
-      } else{
-        return `${value}`;
-      }
-    } else if (typeof value !== 'undefined') return value + '';/* stringify null values */
-  }
-
-  /* getnestedobj,  a function to which fetches a deeply nested property of an object, when passed the object(parentobj) and a string format of property hierarchy(nestedkey) to the target property with format: '[prop1][prop2][prop3]'  */
-  LOGGER.getnestedobj = function (parentobj, nestedkey) {
-    if (typeof nestedkey == 'undefined') return 'report complete!';
-    if (nestedkey === '') return parentobj;
-    let obj;
-    nestedkey.slice(1).replace(/\]/ig, '').split('[').forEach(x => {
-      if (!obj) { obj = parentobj[x]; return; };
-      obj = obj[x];
-    })
-    return obj;
-  }
-  
   /* deepsaveobjaddr directly saves an object and all its nested props to a map. */
   LOGGER.deepsaveobjaddr = function (stalker_ref, datavalue, varname) {
     stalker_ref.sett(varname, datavalue);
@@ -47,7 +17,7 @@ const deepclone = require('./cloner.js');
           continue;
         }
       };
-      scope = arr[arr.length - 1]; fullname = varname + scope; index = saveindex[scope] + 1; a = LOGGER.getnestedobj(datavalue, scope); a_keys = Object.keys(a); arr.pop();
+      scope = arr[arr.length - 1]; fullname = varname + scope; index = saveindex[scope] + 1; a = getnestedobj(datavalue, scope); a_keys = Object.keys(a); arr.pop();
     }
     return stalker_ref;
   }
@@ -75,31 +45,31 @@ const deepclone = require('./cloner.js');
                 continue;
               } else {
                 if (a[prop] !== b[prop]) {
-                  let value = LOGGER.stringify(b[prop]);
+                  let value = stringify(b[prop]);
                   console.log(`${fullname}[${prop}] was reassigned value: ${value}`)
                   a[prop] = deepclone(b[prop], `${fullname}[${prop}]`); LOGGER.deepsaveobjaddr(stalker_ref, b[prop], `${fullname}[${prop}]`);
                 }
               }
             } else {/* if an old prop is nonexistent in new object, it is deleted */
-              console.log(`${fullname}[${prop}] = ${LOGGER.stringify(a[prop])} has been deleted!`);
+              console.log(`${fullname}[${prop}] = ${stringify(a[prop])} has been deleted!`);
               delete a[prop]; stalker_ref.delete(`${fullname}[${prop}]`);
             }
           };
           b_keys.forEach(prop => {/* to detect creation of new prop */
             if (!(prop in a)) {
-              console.log(`created new property ${fullname}[${prop}] = ${LOGGER.stringify(b[prop])};`);
+              console.log(`created new property ${fullname}[${prop}] = ${stringify(b[prop])};`);
               a[prop] = deepclone(b[prop], `${fullname}[${prop}]`); LOGGER.deepsaveobjaddr(stalker_ref, b[prop], `${fullname}[${prop}]`)
             }
           });
           /* climb up the object prop nesting when current prop in not an obj  */
-          scope = arr[arr.length - 1], fullname = varname + scope; index = saveindex[scope] - 1; a = LOGGER.getnestedobj(oldvalue, scope), b = LOGGER.getnestedobj(newvalue, scope); a_keys = Object.keys(a), b_keys = Object.keys(b); arr.pop();
+          scope = arr[arr.length - 1], fullname = varname + scope; index = saveindex[scope] - 1; a = getnestedobj(oldvalue, scope), b = getnestedobj(newvalue, scope); a_keys = Object.keys(a), b_keys = Object.keys(b); arr.pop();
         }
       }
     } else {
       if (newvalue !== oldvalue) {
         stalker_ref[varname] = deepclone(newvalue, varname);
         stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, newvalue, varname);
-        newvalue = LOGGER.stringify(newvalue);
+        newvalue = stringify(newvalue);
         console.log(`${varname} was reassigned the value: ${newvalue}`)
       }
     }
@@ -121,6 +91,7 @@ const deepclone = require('./cloner.js');
     });
     
     /* initialize awareness of function scope */
+    Recon.id = Recon.id || ['a'];/* todo: this should be flawed, as ids shud b unique */
     let nest = Recon.id;
     let inner = nest.join(''), outer = inner.slice(1);
     if (!outer) {

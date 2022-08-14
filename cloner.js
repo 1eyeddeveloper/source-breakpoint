@@ -1,8 +1,20 @@
+/* this cloner logs map information thanks to mapname */
 const mapname = require('./reconfig');
 
+/* getnestedobj,  a function to which fetches a deeply nested property of an object, when passed the object(parentobj) and a string format of property hierarchy(nestedkey) to the target property with format: '[prop1][prop2][prop3]'  */
+function getnestedobj(parentobj, nestedkey) {
+  if (typeof nestedkey == 'undefined') return 'report complete!';
+  if (nestedkey === '') return parentobj;
+  let obj;
+  nestedkey.slice(1).replace(/\]/ig, '').split('[').forEach(x => {
+    if (!obj) { obj = parentobj[x]; return; };
+    obj = obj[x];
+  })
+  return obj;
+}
 
-/* deepcloneobj takes a targetobj and iterates its properties deeply until it has cloned the entirety of the object, of which it returns the cloned object. */
-function deepcloneobj(targetobj, varname) {
+/* deepclone takes a targetobj and iterates its properties deeply until it has cloned the entirety of the object, of which it returns the cloned object. */
+function deepclone(targetobj, varname) {
   if (!(targetobj instanceof Object)) { return targetobj }; let emptyobject;
   /* clones arrays, objects and maps */
   let fullname = varname;
@@ -42,9 +54,9 @@ function deepcloneobj(targetobj, varname) {
         continue;
       }
     };
-    scope = arr[arr.length - 1]; index = saveindex[scope] + 1; a = LOGGER.getnestedobj(targetobj, scope), b = LOGGER.getnestedobj(copy, scope); a_keys = Object.keys(a); arr.pop();
+    scope = arr[arr.length - 1]; index = saveindex[scope] + 1; a = getnestedobj(targetobj, scope), b = getnestedobj(copy, scope); a_keys = Object.keys(a); arr.pop();
   }
   return copy;
 }
 
-module.exports = deepcloneobj;
+module.exports = { deepclone, getnestedobj };
