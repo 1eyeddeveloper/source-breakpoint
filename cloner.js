@@ -2,6 +2,9 @@
 const mapname = require('./reconfig');
 
 /* getnestedobj,  a function to which fetches a deeply nested property of an object, when passed the object(parentobj) and a string format of property hierarchy(nestedkey) to the target property with format: '[prop1][prop2][prop3]'  */
+
+/* wanted to use quoted nested keys ie containing "${prop}", but this causes error when the object referenced with this key is an array as arrays use numbered index not string. 
+Quoted index seems nice as it makes our reports nicer ie bag["red"], instead of bag[red] which confuses as to whether red is some kind of varible or is the actual string of the computed access modifier  */
 function getnestedobj(parentobj, nestedkey) {
   if (typeof nestedkey == 'undefined') return 'report complete!';
   if (nestedkey === '') return parentobj;

@@ -1,10 +1,10 @@
-const {stalker, stalker_init} = require('./breakpoint.js');
 //node.js
+const {stalker, stalker_init} = require('./breakpoint.js');
+stalker_init();/* first initialize the stalker at the toplevel scope of the script */
 function tester(){
   let edit, update, val = 'production', temp;
   /* To monitor variables, as above, create a reconstruction class like this */
   class Recon extends Map{
-    static id = ['a'];/* give current scope an id passed as one string entry in an array */
     constructor() {
       super();
       this.edit = edit, this.update = update, this.val = val, this.temp = temp;
@@ -20,4 +20,7 @@ function tester(){
   temp.set('holidays', {event: 'Christmas'}); ;stalker(Recon, REF);
 };
 
-tester(); /* source breakpoint tokens monitor variable changes within tester function */
+/* source breakpoint tokens monitor variable changes within tester function */
+tester();
+; stalker();
+/* Always follow every function call with a stalker call for best reports. we omit the Recon and Ref parameters as they don't exist in the toplevel scope */

@@ -14,6 +14,8 @@ function stringify (value) {
     } else{
       return `${value}`;
     }
+  } else if (typeof value == 'string'){
+    return '""';
   } else if (typeof value !== 'undefined') return value + '';
 }
 

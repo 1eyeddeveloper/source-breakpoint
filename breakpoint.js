@@ -1,5 +1,6 @@
 const {deepclone, getnestedobj} = require('./cloner.js');
 const { stringify } = require('./stringify.js');
+/* Usage of the modified map functions, sett, gett, clearr, deletee is for optimization purposes only. The default map functions will work well without side effects, but incur a very little overhead code */
 (function () {
   const LOGGER = {};
   /* deepsaveobjaddr directly saves an object and all its nested props to a map. */
@@ -52,7 +53,7 @@ const { stringify } = require('./stringify.js');
               }
             } else {/* if an old prop is nonexistent in new object, it is deleted */
               console.log(`${fullname}[${prop}] = ${stringify(a[prop])} has been deleted!`);
-              delete a[prop]; stalker_ref.delete(`${fullname}[${prop}]`);
+              delete a[prop]; stalker_ref.deletee(`${fullname}[${prop}]`);
             }
           };
           b_keys.forEach(prop => {/* to detect creation of new prop */
@@ -75,13 +76,43 @@ const { stringify } = require('./stringify.js');
     }
   }
 
+  
+  let count = 0; let Gid, mainlength;
+  function preparename(fname){
+    if(fname.includes('/') || fname.includes('\\')) fname = 'anonymous' + count++;
+    fname += '()';
+    return fname;
+  }
+  /* funtion init helps initialize awareness of function scope */
+  function init(Recon, stalker_ref, fullname){
+    scopename.name_ = stalker_ref.name_ = fullname;/* use symbol */
+    if(fullname){
+      console.log(`\n------------  ${fullname} started running  ------------`);
+    }
+    let nest = [...Recon.id];
+    let inner = nest.join(''), outer = (nest.shift(), nest.join(''));
+    if (!outer) {
+      let x = scope[inner] = new Map();
+      x.sett(Recon, stalker_ref);
+    } else {
+      let olx = scope[outer];
+      let x = scope[inner] = new Map([...olx]);
+      x.sett(Recon, stalker_ref);
+    }
+  }
   /* The breakpoint functions */
-  const scope = {}; const scopename = {}; let count = 0;
+  const scope = {}; const scopename = {};
   function stalker_init(Recon) {
+    if(!Recon){
+      Recon = class extends Map{}; Recon.id = Gid = ['G'];
+    }else if(!Gid){
+      throw new Error('You must first initialize toplevel scope with an empty call to stalker_init');
+    } 
+    
     let stalker_ref = new Recon();
     let inscope = '';
     Object.keys(stalker_ref).forEach(key => {
-      inscope += `${key}, `;
+      inscope += `${key}: ${stringify(stalker_ref[key])}, `;
       if (stalker_ref[key]) {
         stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, stalker_ref[key], key);
         if (stalker_ref[key] instanceof Object && !(stalker_ref[key] instanceof Function) && !(stalker_ref[key] instanceof Map)) {
@@ -89,24 +120,27 @@ const { stringify } = require('./stringify.js');
         }
       }
     });
-    
-    /* initialize awareness of function scope */
-    Recon.id = Recon.id || ['a'];/* todo: this should be flawed, as ids shud b unique */
-    let nest = Recon.id;
-    let inner = nest.join(''), outer = inner.slice(1);
-    if (!outer) {
-      let x = scope[inner] = new Map();
-      x.set(Recon, stalker_ref);
-    } else {
-      let olx = scope[outer];
-      let x = scope[inner] = new Map([...olx]);
-      x.set(Recon, stalker_ref);
+    //prepare name and id for non-toplevel scopes
+    let parse = new Error().stack.trim().split("at "); 
+    let arr = parse[2].trim().split(' '); 
+    let stackname = '';
+    if(Recon.id){
+      mainlength = parse.length;
+    }else{
+      if(mainlength == parse.length){
+        Recon.id = Gid;
+      }else{
+        stackname = preparename(arr[0]);
+      }
     }
-    let funcname = new Error().stack.split("\n")[2].trim().split(" ")[1];
-    if(funcname.includes('/') || funcname.includes('\\')) funcname = 'anonymous' + count++;
-    scopename.name_ = stalker_ref.name_ = funcname;/* use symbol */
-    console.log(`\n------------ function ${funcname}() started running  ------------`);
-    console.log('variables encountered in scope: (', inscope, ')')
+    if(!Recon.id){
+      let str = arr.pop();
+      str = str.trim().split('js:').pop().replace(")", '');
+      let id = [str, ...Gid];//works for js scripts not html scripts and mjs scripts
+      Recon.id = id;
+    }
+    init(Recon, stalker_ref, stackname);
+    if(inscope) console.log('variables encountered in scope: (', inscope, ')')
     return stalker_ref;
   };
 
@@ -114,10 +148,14 @@ const { stringify } = require('./stringify.js');
 
   /* applies LOGGER.watchvarchanges on each property of the reconstruction object both for current scope, and ancestor scopes  */
   function stalker(Recon, stalker_ref) {
-    if(scopename.name_){
-      let funcname = scopename.name_;
-      if(funcname != stalker_ref.name_){
-        console.log(`------------ function ${funcname}() has returned  ------------\n`);
+    if(!Recon){
+      Recon = class extends Map{}; Recon.id = ['G'];
+      stalker_ref = new Recon();
+    }
+    let stackname = '';
+    if(stackname = scopename.name_){
+      if(stackname !== stalker_ref.name_){
+        console.log(`------------  ${stackname} stopped running  ------------\n`);
         scopename.name_ = stalker_ref.name_;
         /* wont work for anonymous functions since they share same name */
       };
@@ -127,7 +165,8 @@ const { stringify } = require('./stringify.js');
     Object.keys(recon).forEach(varname => {
       LOGGER.watchvarchanges(recon, stalker_ref, varname);
     });
-    let outer = Recon.id.join('').slice(1);
+    let nest = [...Recon.id];
+    let outer = (nest.shift(), nest.join(''));
     if (outer) {
       let x = scope[outer];
       for (const [recon, stalker_ref] of x) {

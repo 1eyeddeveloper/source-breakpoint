@@ -1,18 +1,19 @@
 const { stalker, stalker_init } = require('./breakpoint.js');
+stalker_init();/* first empty initalize */
 let edit, update, val = 'production', temp;
 class Recon extends Map {
-  static id = ['a']; /* id is an array of strings reflecting ids of scopes the function has access to. 1st entry reflects current id, succeding entries reflect ids for succeding higher scopes respectively */
   constructor() {
     super();
     this.edit = edit, this.update = update, this.val = val, this.temp = temp;
   }
 }
-const REF = stalker_init(Recon);; stalker(Recon, REF);
+/* you are at liberty to track variables in toplevel scope, and you will still have to initialize the usual way with the reconstruction object */
+const REF = stalker_init(Recon);
+; stalker(Recon, REF);
 
 function nesttest() {
   let edit, date = new Date().toDateString(), post = { title: 'Hello World' };
   class Recon extends Map {
-    static id = ['b', 'a'];/* id has 2 entries: the 1st is the id of this scope, the 2nd is the id of the parent scope */
     constructor() {
       super();
       this.edit = edit, this.date = date, this.post = post
@@ -27,6 +28,23 @@ edit = { state: true, value: 'groups' }, update = null;; stalker(Recon, REF);
 val = edit.value, temp = new Map();
 temp.set('holidays', { event: 'Christmas' });; stalker(Recon, REF);
 
-nesttest(); /* test tracking of variable masking */
+/* test tracking of variable masking */
+nesttest();
 
 edit.state = false;; stalker(Recon, REF); /* verify masking */
+
+/* 
+stalker can only track first level nesting correctly. more that one level nest of scope will return incomplete reports. Consider the illustrated main.js script below, stalker will fail to report changes to some of the variables that func2 can access, specifically variables declared within func1.
+### main.js ###
+--------toplevel scope----------
+//some code
+function func1(){--------1st level nest----------
+  //some code
+  function func2(){--------2nd level nest----------
+    //some code
+  }
+  func2();
+};
+func1();
+
+ */
