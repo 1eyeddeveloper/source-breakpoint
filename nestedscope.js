@@ -33,6 +33,7 @@ nesttest();
 
 edit.state = false;; stalker(Recon, REF); /* verify masking */
 
+//I think this is false. I have to re-evaluate.
 /* 
 stalker can only track first level nesting correctly. more that one level nest of scope will return incomplete reports. Consider the illustrated main.js script below, stalker will fail to report changes to some of the variables that func2 can access, specifically variables declared within func1.
 ### main.js ###

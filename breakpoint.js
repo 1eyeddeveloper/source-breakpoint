@@ -124,6 +124,7 @@ const { stringify } = require('./stringify.js');
     let parse = new Error().stack.trim().split("at "); 
     let arr = parse[2].trim().split(' '); 
     let stackname = '';
+    //guess here I'm assuming user calls another stalker_init in the toplevel scope after the mandatory blank stalker_init. Can you modify this module to do without the mandatory blank stalker_init??
     if(Recon.id){
       mainlength = parse.length;
     }else{
@@ -147,6 +148,7 @@ const { stringify } = require('./stringify.js');
   /* deleted the scopeinspect function. it wrongly supposed that a function scope is encountered when the function is called. */
 
   /* applies LOGGER.watchvarchanges on each property of the reconstruction object both for current scope, and ancestor scopes  */
+  //i think the module eventually didn't need a blank stalker. todo delete
   function stalker(Recon, stalker_ref) {
     if(!Recon){
       Recon = class extends Map{}; Recon.id = ['G'];
