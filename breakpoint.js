@@ -77,11 +77,16 @@ const { stringify } = require('./stringify.js');
   }
 
   
-  let count = 0; let Gid, mainlength;
+  //Gid is the topmost id value of the running script (the topmost line no of the script)
+  let count = 0; let Gid = ['1:1'];
+  const scopeids = new Map();
   function preparename(fname){
-    if(fname.includes('/') || fname.includes('\\')) fname = 'anonymous' + count++;
+    //for a script running on NodeJs, the toplevel stack is called Object.<anonymous> & for script run on html toplevel stack name is empty(''), so only the path to stack is shown (which is a filepapth).
+    //for script running on NodeJS or on html, stack name of anonymous function is empty, so only the path of stack name is shown (which is a filepath).
+    if(fname.includes('anonymous') || fname.includes('/') || fname.includes('\\')) fname = 'anonymous' + count++;
     fname += '()';
     return fname;
+    /* thus if the function name is called anonymous0, then it is the highest level stack of where you declared stalker */
   }
   /* funtion init helps initialize awareness of function scope */
   function init(Recon, stalker_ref, fullname){
@@ -89,8 +94,17 @@ const { stringify } = require('./stringify.js');
     if(fullname){
       console.log(`\n------------  ${fullname} started running  ------------`);
     }
-    let nest = [...Recon.id];
-    let inner = nest.join(''), outer = (nest.shift(), nest.join(''));
+    let nest = [...Recon.id];//redundant?? no, donot change id directly
+    /* let inner = nest.join(''), outer = (nest.shift(), nest.join(''));
+    if (!outer) {
+      let x = scope[inner] = new Map();
+      x.sett(Recon, stalker_ref);
+    } else {
+      let olx = scope[outer];
+      let x = scope[inner] = new Map([...olx]);
+      x.sett(Recon, stalker_ref);
+    } */
+    let inner = nest.shift(), outer = nest.shift();
     if (!outer) {
       let x = scope[inner] = new Map();
       x.sett(Recon, stalker_ref);
@@ -101,12 +115,10 @@ const { stringify } = require('./stringify.js');
     }
   }
   /* The breakpoint functions */
-  const scope = {}; const scopename = {};
+  let Glength = 0; const scope = {}; const scopename = {};
   function stalker_init(Recon) {
     if(!Recon){
-      Recon = class extends Map{}; Recon.id = Gid = ['G'];
-    }else if(!Gid){
-      throw new Error('You must first initialize toplevel scope with an empty call to stalker_init');
+      throw new Error('You must pass an appropriate Reconstruction object to stalker_init');
     } 
     
     let stalker_ref = new Recon();
@@ -120,26 +132,21 @@ const { stringify } = require('./stringify.js');
         }
       }
     });
-    //prepare name and id for non-toplevel scopes
-    let parse = new Error().stack.trim().split("at "); 
+    //prepare name and id for scopes
+    let parse = new Error().stack.trim().split("at "), slength = parse.length; 
     let arr = parse[2].trim().split(' '); 
-    let stackname = '';
-    //guess here I'm assuming user calls another stalker_init in the toplevel scope after the mandatory blank stalker_init. Can you modify this module to do without the mandatory blank stalker_init??
-    if(Recon.id){
-      mainlength = parse.length;
-    }else{
-      if(mainlength == parse.length){
-        Recon.id = Gid;
-      }else{
-        stackname = preparename(arr[0]);
-      }
-    }
-    if(!Recon.id){
-      let str = arr.pop();
-      str = str.trim().split('js:').pop().replace(")", '');
-      let id = [str, ...Gid];//works for js scripts not html scripts and mjs scripts
-      Recon.id = id;
-    }
+    //comprehensive ids to track all levels of nesting
+    if(count === 0) Recon.id = Gid, Glength = slength;
+    const i = slength - Glength;
+    //only stalker_init @ count = 0, uses Gid, every other stalker_init gets a unique id, evenif it is @ same stack level as level count = 0, 
+    let outer = (i === 0) ? [] : scopeids.get(i-1);
+    let oarr = arr.pop().trim().split(':');
+    let a = oarr.pop(), b = oarr.pop();
+    let inner = (b+":"+a).replace(')', '');
+    Recon.id = [inner, ...outer];
+    // let stackname  = namesmap.get(i);//error no namesmap
+    let stackname = preparename(arr[0]);/* prepare after count check, cuz of sideEffects */
+    scopeids.set(i, Recon.id);
     init(Recon, stalker_ref, stackname);
     if(inscope) console.log('variables encountered in scope: (', inscope, ')')
     return stalker_ref;
@@ -150,9 +157,8 @@ const { stringify } = require('./stringify.js');
   /* applies LOGGER.watchvarchanges on each property of the reconstruction object both for current scope, and ancestor scopes  */
   //i think the module eventually didn't need a blank stalker. todo delete
   function stalker(Recon, stalker_ref) {
-    if(!Recon){
-      Recon = class extends Map{}; Recon.id = ['G'];
-      stalker_ref = new Recon();
+    if(!Recon && !stalker_ref){
+      throw new Error("you must pass a Recon and a REF to stalker")
     }
     let stackname = '';
     if(stackname = scopename.name_){
@@ -168,7 +174,7 @@ const { stringify } = require('./stringify.js');
       LOGGER.watchvarchanges(recon, stalker_ref, varname);
     });
     let nest = [...Recon.id];
-    let outer = (nest.shift(), nest.join(''));
+    let outer = (nest.shift(), nest.shift());
     if (outer) {
       let x = scope[outer];
       for (const [recon, stalker_ref] of x) {
