@@ -1,0 +1,20 @@
+{
+  "name": "source-breakpoint",
+  "version": "1.0.0",
+  "description": "A Javascript utility module to help track source variables with just one inline function.",
+  "main": "breakpoint.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/1eyeddeveloper/source-breakpoint.git"
+  },
+  "keywords": [],
+  "author": "@1eyeddeveloper",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/1eyeddeveloper/source-breakpoint/issues"
+  },
+  "homepage": "https://github.com/1eyeddeveloper/source-breakpoint#readme"
+}
