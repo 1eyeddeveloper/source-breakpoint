@@ -1,5 +1,5 @@
 const { stalker, stalker_init } = require('./breakpoint.js');
-stalker_init();/* first empty initalize */
+// stalker_init();/* first empty initalize */
 let edit, update, val = 'production', temp;
 class Recon extends Map {
   constructor() {
@@ -7,9 +7,11 @@ class Recon extends Map {
     this.edit = edit, this.update = update, this.val = val, this.temp = temp;
   }
 }
-/* you are at liberty to track variables in toplevel scope, and you will still have to initialize the usual way with the reconstruction object */
+/* you are at liberty to track variables in toplevel scope, and you will still have to initialize the usual way with the reconstruction object *///hopefully obsolete
 const REF = stalker_init(Recon);
 ; stalker(Recon, REF);
+// (function(){console.log(new Error().stack.trim().split("at "))})();
+// console.log(new Error().stack.trim().split("at ")[2].trim().split(' '))
 
 function nesttest() {
   let edit, date = new Date().toDateString(), post = { title: 'Hello World' };
@@ -19,9 +21,24 @@ function nesttest() {
       this.edit = edit, this.date = date, this.post = post
     }
   }
+  // console.log(new Error().stack.trim().split("at "))
+  // console.log(new Error().stack.trim().split("at ")[2].trim().split(' '))
   const REF = stalker_init(Recon);; stalker(Recon, REF);
   edit = true; post.date = date;; stalker(Recon, REF); /* edit variable here masks parent scopes edit variable */
   val = 'development', update = 'v1.2.1';; stalker(Recon, REF); /* stalker tracks all scoped vars */
+  function func2(){
+    let date = 'nodate', big = 'BiGi';
+    class Recon extends Map{
+      constructor() {
+        super();
+        this.date = date, this.big = big;
+      }
+    }
+    const REF = stalker_init(Recon);; stalker(Recon, REF);
+    edit = {fuck: "Fucker"}; date = 'somedate';; stalker(Recon, REF);
+  }
+  func2();
+  date+='good';; stalker(Recon, REF);
 }
 
 edit = { state: true, value: 'groups' }, update = null;; stalker(Recon, REF);
@@ -33,19 +50,4 @@ nesttest();
 
 edit.state = false;; stalker(Recon, REF); /* verify masking */
 
-//I think this is false. I have to re-evaluate.
-/* 
-stalker can only track first level nesting correctly. more that one level nest of scope will return incomplete reports. Consider the illustrated main.js script below, stalker will fail to report changes to some of the variables that func2 can access, specifically variables declared within func1.
-### main.js ###
---------toplevel scope----------
-//some code
-function func1(){--------1st level nest----------
-  //some code
-  function func2(){--------2nd level nest----------
-    //some code
-  }
-  func2();
-};
-func1();
-
- */
+/* the stalker module can now track any level of function declaration nesting */
