@@ -3,7 +3,7 @@ A Javascript utility module to help track source variables with just one inline 
 
 ## Usage
 
-A little convention is required to utilize the stalker module. Within a function scope, simply set up all variables you need to track into a reconstruction class. Use the reconstruction class with the stalker_init() and stalker() functions only to track the changes in these variables.
+A little convention is required to utilize the stalker module. Within a function scope, simply set up all variables you need to track into a reconstruction class. Use the reconstruction class with only the stalker_init() and stalker() functions to track the changes in these variables.
 
 Example: [basic.js](./basic.js):
 
