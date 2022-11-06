@@ -3,7 +3,7 @@ A Javascript utility module to help track source variables with just one inline 
 
 ## Usage
 
-A little convention is required to utilize the stalker module. Within a function scope, simply set up all variables you need to track into a reconstruction class. Use the reconstruction class with the stalker_init() and stalker() functions only to track the changes in these variables.
+A little convention is required to utilize the stalker module. Within a function scope, simply set up all variables you need to track into a reconstruction class. Use the reconstruction class with only the stalker_init() and stalker() functions to track the changes in these variables.
 
 Example: [basic.js](./basic.js):
 
@@ -33,6 +33,9 @@ function tester(){
 tester();; stalker();
 /* Always follow every function call with a stalker call for best reports. We omit the arguments to the stalker call, as they are not defined in the toplevel scope */
 ```
+![Result (test)](/test.jpg)
+
+
 
 Example [nestedscope.js_](./nestedscope.js):
 
@@ -93,4 +96,6 @@ edit.state = false;; stalker(Recon, REF); /* verify masking */
 
 /* the stalker module can now track any level of function declaration nesting, as demonstarated with nesttest and func2 levels of nesting */
 ```
+![Result (nestedscope)](/nestedscope.jpg)
+
 
