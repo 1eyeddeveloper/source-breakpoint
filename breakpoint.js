@@ -77,33 +77,37 @@ const { stringify } = require('./stringify.js');
   }
 
   
-  //Gid is the topmost id value of the running script (the topmost line no of the script)
-  let count = 0; let Gid = ['1:1'];
+  let count = 0;
   const scopeids = new Map();
   function preparename(fname){
-    //for a script running on NodeJs, the toplevel stack is called Object.<anonymous> & for script run on html toplevel stack name is empty(''), so only the path to stack is shown (which is a filepapth).
-    //for script running on NodeJS or on html, stack name of anonymous function is empty, so only the path of stack name is shown (which is a filepath).
-    if(fname.includes('anonymous') || fname.includes('/') || fname.includes('\\')) fname = 'anonymous' + count++;
+    //for a script running on NodeJs, the toplevel stack is called Object.<anonymous> & for script run on html toplevel stack name is empty(''), so only the path to stack is shown.
+    //for script running on NodeJS or on html, stack name of anonymous function is empty, so only the path of stack name is shown.
+    if(!fname || fname.includes('<anonymous>')) fname = 'anonymous' + count++;
     fname += '()';
     return fname;
-    /* thus if the function name is called anonymous0, then it is the highest level stack of where you declared stalker */
   }
-  /* funtion init helps initialize awareness of function scope */
+  function varsReport(key, val){
+    if(typeof val === 'undefined') return `${key};`
+    return `${key} = ${stringify(val)};`
+  }
+  
+  const name_ = Symbol(); const sym = Symbol();
   function init(Recon, stalker_ref, fullname){
-    scopename.name_ = stalker_ref.name_ = fullname;/* use symbol */
     if(fullname){
+      scopename[name_] = stalker_ref[name_] = fullname;
       console.log(`\n------------  ${fullname} started running  ------------`);
     }
+    (stalker_ref[sym] = Object.keys(stalker_ref)).forEach(key=> {
+      const value = stalker_ref[key];
+      console.log(`created variable ${varsReport(key, value)}`)
+      if (value) {
+        stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, value, key);
+        if (value instanceof Object && !(value instanceof Function) && !(value instanceof Map)) {
+          stalker_ref[key] = deepclone(value, key)
+        }
+      }
+    });
     let nest = [...Recon.id];//redundant?? no, donot change id directly
-    /* let inner = nest.join(''), outer = (nest.shift(), nest.join(''));
-    if (!outer) {
-      let x = scope[inner] = new Map();
-      x.sett(Recon, stalker_ref);
-    } else {
-      let olx = scope[outer];
-      let x = scope[inner] = new Map([...olx]);
-      x.sett(Recon, stalker_ref);
-    } */
     let inner = nest.shift(), outer = nest.shift();
     if (!outer) {
       let x = scope[inner] = new Map();
@@ -114,62 +118,69 @@ const { stringify } = require('./stringify.js');
       x.sett(Recon, stalker_ref);
     }
   }
+
+
   /* The breakpoint functions */
-  let Glength = 0; const scope = {}; const scopename = {};
+  class Tracker extends Map{ static id = ['1:1']; constructor(){ super() } }
+  let Glength = 0; const scope = {}; const scopename = {}; let scopenum = 0;
   function stalker_init(Recon) {
-    if(!Recon){
-      throw new Error('You must pass an appropriate Reconstruction object to stalker_init');
-    } 
-    
-    let stalker_ref = new Recon();
-    let inscope = '';
-    Object.keys(stalker_ref).forEach(key => {
-      inscope += `${key}: ${stringify(stalker_ref[key])}, `;
-      if (stalker_ref[key]) {
-        stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, stalker_ref[key], key);
-        if (stalker_ref[key] instanceof Object && !(stalker_ref[key] instanceof Function) && !(stalker_ref[key] instanceof Map)) {
-          stalker_ref[key] = deepclone(stalker_ref[key], key)
-        }
-      }
-    });
-    //prepare name and id for scopes
+    if(!(Recon instanceof Function)) throw new Error('You must pass a class to stalker_init!')
     let parse = new Error().stack.trim().split("at "), slength = parse.length; 
-    let arr = parse[2].trim().split(' '); 
+    let arr = parse[2].trim().split(' '), stackname = false;
+    
+    let stalker_ref = new Tracker;
+    try{ new Recon(stalker_ref) }catch(e){};
+
     //comprehensive ids to track all levels of nesting
-    if(count === 0) Recon.id = Gid, Glength = slength;
-    const i = slength - Glength;
-    //only stalker_init @ count = 0, uses Gid, every other stalker_init gets a unique id, evenif it is @ same stack level as level count = 0, 
-    let outer = (i === 0) ? [] : scopeids.get(i-1);
+    if(scopenum === 0) Glength = slength;
+    let i = slength - Glength, outer = [];
+    //scopeids.get may b undefined if user omits stalking some level of nestedscope, hence d loop
+    if(i > 0){
+      while(!outer.length){
+        outer = scopeids.get(i-1) || [];
+        --i;
+      }
+    }
     let oarr = arr.pop().trim().split(':');
     let a = oarr.pop(), b = oarr.pop();
     let inner = (b+":"+a).replace(')', '');
-    Recon.id = [inner, ...outer];
-    // let stackname  = namesmap.get(i);//error no namesmap
-    let stackname = preparename(arr[0]);/* prepare after count check, cuz of sideEffects */
+    if(Recon !== Tracker) Recon.id = [inner, ...outer], stackname = preparename(arr[0]);
     scopeids.set(i, Recon.id);
-    init(Recon, stalker_ref, stackname);
-    if(inscope) console.log('variables encountered in scope: (', inscope, ')')
+    init(Recon, stalker_ref, stackname); scopenum++;
     return stalker_ref;
   };
 
-  /* deleted the scopeinspect function. it wrongly supposed that a function scope is encountered when the function is called. */
 
   /* applies LOGGER.watchvarchanges on each property of the reconstruction object both for current scope, and ancestor scopes  */
-  //i think the module eventually didn't need a blank stalker. todo delete
   function stalker(Recon, stalker_ref) {
-    if(!Recon && !stalker_ref){
-      throw new Error("you must pass a Recon and a REF to stalker")
-    }
-    let stackname = '';
-    if(stackname = scopename.name_){
-      if(stackname !== stalker_ref.name_){
+    if(!stalker_ref) { Recon = Tracker; stalker_ref = stalker_init(Recon) };
+    let stackname = scopename[name_];
+    if(stackname){
+      if(stackname !== stalker_ref[name_]){
         console.log(`------------  ${stackname} stopped running  ------------\n`);
-        scopename.name_ = stalker_ref.name_;
-        /* wont work for anonymous functions since they share same name */
       };
     }
-    let recon = new Recon();
-    //after reconstruction...
+    scopename[name_] = stalker_ref[name_];
+    let recon = {}; try{ new Recon(recon) } catch(e){};//recon, go fetch the vars boy!
+
+    //list of all variables so far declared
+    let varr = Object.keys(recon);
+    //(slice of list of former vars, to get list of new vars)
+    varr.slice(stalker_ref[sym].length).forEach(v=> {
+      const value = recon[v];
+      console.log(`created variable ${varsReport(v, value)}`)
+      //update stalker_ref to hold new variables. needed for watchvarchanges
+      if (value) {
+        stalker_ref = LOGGER.deepsaveobjaddr(stalker_ref, value, v);
+        if (value instanceof Object && !(value instanceof Function) && !(value instanceof Map)) {
+          stalker_ref[v] = deepclone(value, v)
+        }else if(!(value instanceof Object)){
+          stalker_ref[v] = deepclone(value, v)
+        }
+      }
+    });
+    stalker_ref[sym] = varr;//updated list of tracked variables
+
     Object.keys(recon).forEach(varname => {
       LOGGER.watchvarchanges(recon, stalker_ref, varname);
     });
@@ -178,7 +189,7 @@ const { stringify } = require('./stringify.js');
     if (outer) {
       let x = scope[outer];
       for (const [recon, stalker_ref] of x) {
-        let r = new recon();
+        let r = {}; try{ new recon(r) }catch(e){};
         Object.keys(r).forEach(varname => {
           LOGGER.watchvarchanges(r, stalker_ref, varname);
         });
@@ -187,3 +198,11 @@ const { stringify } = require('./stringify.js');
   }
   module.exports = { stalker, stalker_init };
 })();
+
+
+/* ==========
+WHATS NEXT?? 
+The next goal is to use a parser invoked via CLI to rewrite scripts and automatically generate the Recon class at the top of every function declaration/scope like for loops, and also follow it with the "REF = stalker_init()" declaration. This further reduces tasks expected of the user. User will now just need to import the stalker module and call it at intervals (without arguments ofcourse, as the Recon and REF arguments will be created and injected during rewrite).
+
+Use a CLI invocation to strip all the source-breakpoint tokens, for when debug-testing is complete and user needs the raw script.
+========= */

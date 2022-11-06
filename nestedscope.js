@@ -1,47 +1,49 @@
 const { stalker, stalker_init } = require('./breakpoint.js');
-// stalker_init();/* first empty initalize */
-let edit, update, val = 'production', temp;
-class Recon extends Map {
-  constructor() {
-    super();
-    this.edit = edit, this.update = update, this.val = val, this.temp = temp;
+let edit, update;
+/* declare all variables local to this scope inorder of appearance within Recon constructor */
+class Recon {
+  constructor(vars) {
+    vars.edit = edit, vars.update = update, vars.val = val, vars.temp = temp;
   }
 }
-/* you are at liberty to track variables in toplevel scope, and you will still have to initialize the usual way with the reconstruction object *///hopefully obsolete
 const REF = stalker_init(Recon);
-; stalker(Recon, REF);
-// (function(){console.log(new Error().stack.trim().split("at "))})();
-// console.log(new Error().stack.trim().split("at ")[2].trim().split(' '))
 
+//lvl 1 scope encapsulation with new function declaration
 function nesttest() {
-  let edit, date = new Date().toDateString(), post = { title: 'Hello World' };
-  class Recon extends Map {
-    constructor() {
-      super();
-      this.edit = edit, this.date = date, this.post = post
+  let edit, date = new Date().toDateString();
+  //declare all variables within this scope within Recon, and in order of appearance
+  class Recon {
+    constructor(vars) {
+      vars.edit = edit, vars.date = date, vars.post = post
     }
   }
-  // console.log(new Error().stack.trim().split("at "))
-  // console.log(new Error().stack.trim().split("at ")[2].trim().split(' '))
   const REF = stalker_init(Recon);; stalker(Recon, REF);
-  edit = true; post.date = date;; stalker(Recon, REF); /* edit variable here masks parent scopes edit variable */
+
+  edit = true;; stalker(Recon, REF); /* edit variable here masks parent scopes' edit variable */
   val = 'development', update = 'v1.2.1';; stalker(Recon, REF); /* stalker tracks all scoped vars */
-  function func2(){
+  //stalker can track newly created variables (see similar case below)
+  let post = { title: 'Hello World' };; stalker(Recon, REF);
+  post.date = date;; stalker(Recon, REF);
+
+  //lvl 2 scope encapsulation with new function declaration within lvl 1 scope
+  function func2() {
     let date = 'nodate', big = 'BiGi';
-    class Recon extends Map{
-      constructor() {
-        super();
-        this.date = date, this.big = big;
+    class Recon {
+      constructor(vars) {
+        vars.date = date, vars.big = big;
       }
     }
     const REF = stalker_init(Recon);; stalker(Recon, REF);
-    edit = {fuck: "Fucker"}; date = 'somedate';; stalker(Recon, REF);
+
+    edit = { good: "Muffins" }; date = 'somedate';; stalker(Recon, REF);
   }
   func2();
-  date+='good';; stalker(Recon, REF);
+  date += 'good';; stalker(Recon, REF);
 }
 
 edit = { state: true, value: 'groups' }, update = null;; stalker(Recon, REF);
+//so far as Recon is delacred as indicated, stalker can track newly created variables like val
+let val = 'production', temp;; stalker(Recon, REF);
 val = edit.value, temp = new Map();
 temp.set('holidays', { event: 'Christmas' });; stalker(Recon, REF);
 
@@ -50,4 +52,4 @@ nesttest();
 
 edit.state = false;; stalker(Recon, REF); /* verify masking */
 
-/* the stalker module can now track any level of function declaration nesting */
+/* the stalker module can now track any level of function declaration nesting, as demonstarated with nesttest and func2 levels of nesting */
