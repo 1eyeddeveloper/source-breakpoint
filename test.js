@@ -20,5 +20,4 @@ function tester(){
 };
 
 /* source breakpoint tokens monitor variable changes within tester function */
-tester();; stalker();
-/* Always follow every function call with a stalker call for best reports. We omit the arguments to the stalker call, as they are not defined in the toplevel scope */
+tester();

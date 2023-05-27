@@ -42,6 +42,10 @@ function nesttest() {
 }
 
 edit = { state: true, value: 'groups' }, update = null;; stalker(Recon, REF);
+/* created variable update = null;
+update was reassigned the value: null.
+//this is a buggy report, only the first report should show up */
+
 //so far as Recon is delacred as indicated, stalker can track newly created variables like val
 let val = 'production', temp;; stalker(Recon, REF);
 val = edit.value, temp = new Map();
