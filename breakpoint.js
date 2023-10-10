@@ -1,10 +1,6 @@
 const {deepclone, getnestedobj} = require('./cloner.js');
 const { stringify } = require('./stringify.js');
 
-function isactualNaN(value) {
-  return (typeof value === 'number' && isNaN(value));
-}
-
 const LOGGER = {};
 /* deepsaveobjaddr directly saves an object and all its nested props to a map. */
 LOGGER.deepsaveobjaddr = function (stalker_ref, datavalue, varname) {
@@ -88,9 +84,18 @@ function varsReport(key, val){
   if(typeof val === 'undefined') return `${key};`
   return `${key} = ${stringify(val)};`
 }
+function isactualNaN(value) {
+  return (typeof value === 'number' && isNaN(value));
+}
+
+
+const runningscope = new Map(); const names = new Map();//potential ancestors
 
 const blocks = {}; const name_ = Symbol(); const sym = Symbol();
 function init(Recon, stalker_ref, fullname, id){
+  runningscope.sett(Recon, stalker_ref); let check = names.gett(fullname);
+  if(!check) names.sett(fullname, [Recon]);
+  else if(!check.includes(Recon)) check.push(Recon);
   /* The conditionals are cuz of for loops, also works for recursive functions */
   //todo, isit not better if u use the condiions of when a func stops to know when it starts?
   if(scopename[name_] != fullname){
@@ -109,9 +114,9 @@ function init(Recon, stalker_ref, fullname, id){
 }
 
 class Tracker extends Map{ constructor(){ super() } }
-const store = new Map(), scope = {}, scopename = {};
-function stalker_init(Recon) {
-  if(!(Recon instanceof Function))
+const store = new Map(), scopename = {};
+function stalker_init(Rcn) {
+  if(!(Rcn instanceof Function))
     throw new Error('You must pass a class as first argument to stalker_init!');
   let stalker_ref = new Tracker;
 
@@ -120,18 +125,10 @@ function stalker_init(Recon) {
 
   let runningstack = stackarr.shift().trim().split(' ')
   let moreinfo = runningstack.pop().split(':');
-  let activefile = moreinfo.shift(), id = moreinfo.join(':');
-  let scopenames = stackarr.filter(x => x.includes(activefile)).map(x => {
-    let token = x.trim().split(' ').shift();
-    if(!token || token.includes('<anonymous>')) --count;
-    return preparename(token);
-  });//potential ancestor names
+  let id = (moreinfo.shift(), moreinfo.join(':'));
   
-  //must prepare funcname after gathering potential (including anonymous) ancestors
   let funcname = preparename(runningstack.pop()), oldname = store.gett('name');
   store.sett('name', funcname);
-  scope[funcname] = [Recon, stalker_ref];//if doppleganger funcname overrides this?...no issues
-  let outer = scopenames.map(x => scope[x]).filter(x => x)
 
   let olstackarr = store.gett('sig'); store.sett('sig', stackarr); 
   if(olstackarr){
@@ -140,19 +137,20 @@ function stalker_init(Recon) {
     if(depth < 0 || stackarr.slice(depth).join('') != olstackarr.join('')){
       //this condition alone cannot catch when evt handler functions stop, hence the next 2
       console.log(`============  ${oldname}() stopped running  1============\n`);
+      /* code deffered due to async operations dont execute on the main callstack, but on some async-stack. I think the length of this async-stack is 1, not sure not tested yet. */
+      if(stackarr.length > 1) names.gett(oldname).forEach(r => runningscope.delete(r))
     }else if(oldname.includes('anonymous') && depth == 0) {
       console.log(`============  ${oldname}() stopped running  2============\n`);
+      if(stackarr.length > 1) names.gett(oldname).forEach(r => runningscope.delete(r))
     }else if(funcname != oldname && !deepfuncnames.includes(oldname)) {
       console.log(`============  ${oldname}() stopped running  3============\n`);
+      if(stackarr.length > 1) names.gett(oldname).forEach(r => runningscope.delete(r))
     }
-    outer.unshift(store.gett('global'))
-  }else {
-    store.sett('global', [Recon, stalker_ref])
   }
   
-  Recon.stackarr = stackarr; Recon.outer = outer;
+  Rcn.stackarr = stackarr;
   
-  init(Recon, stalker_ref, funcname, id);
+  init(Rcn, stalker_ref, funcname, id);
   return stalker_ref;
 };
 
@@ -165,6 +163,7 @@ function stalker(Recon, stalker_ref) {
   let funcname = scopename[name_];
   if(funcname !== stalker_ref[name_]){
     console.log(`============  ${funcname}() stopped running  4============\n`);
+    names.gett(funcname).forEach(r => runningscope.delete(r))
     scopename[name_] = stalker_ref[name_];
     store.sett('name', stalker_ref[name_]); store.sett('sig', Recon.stackarr);
   };
@@ -191,8 +190,7 @@ function stalker(Recon, stalker_ref) {
     LOGGER.watchvarchanges(recon, stalker_ref, varname, newvars);
   });
   //watch ancestors too.
-  let x = Recon.outer;
-  for (const [recon, stalker_ref] of x) {
+  for (const [recon, stalker_ref] of runningscope) {
     let r = {}; try{ new recon(r) }catch(e){};
     Object.keys(r).forEach(varname => {
       LOGGER.watchvarchanges(r, stalker_ref, varname, []);
