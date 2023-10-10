@@ -1,27 +1,29 @@
 const {stringify} = require('./stringify.js');
 const mapname = new Map();
-Map.prototype.sett = Map.prototype.set;
-Map.prototype.set = function (key, value) {
-  let id = mapname.gett(this);
-  if (id) console.log(`executed: ${id}.set(${stringify(key)}, ${stringify(value)})`);
-  return this.sett(key, value);
+if(typeof Map.prototype.gett !== 'function') {
+  Map.prototype.gett = Map.prototype.get;
+  Map.prototype.get = function (key) {
+    let id = mapname.gett(this);
+    if (id) console.log(`executed: ${id}.get(${stringify(key)})`);
+    return this.gett(key);
+  }
+  Map.prototype.sett = Map.prototype.set;
+  Map.prototype.set = function (key, value) {
+    let id = mapname.gett(this);
+    if (id) console.log(`executed: ${id}.set(${stringify(key)}, ${stringify(value)})`);
+    return this.sett(key, value);
+  };
+  Map.prototype.deletee = Map.prototype.delete;
+  Map.prototype.delete = function (key) {
+    let id = mapname.gett(this);
+    if (id) console.log(`executed: ${id}.delete(${stringify(key)})`);
+    return this.deletee(key);
+  }
+  Map.prototype.clearr = Map.prototype.clear;
+  Map.prototype.clear = function () {
+    let id = mapname.gett(this);
+    if (id) console.log(`executed: ${id}.clear()`);
+    return this.clearr();
+  }
 };
-Map.prototype.gett = Map.prototype.get;
-Map.prototype.get = function (key) {
-  let id = mapname.gett(this);
-  if (id) console.log(`executed: ${id}.get(${stringify(key)})`);
-  return this.gett(key);
-}
-Map.prototype.deletee = Map.prototype.delete;
-Map.prototype.delete = function (key) {
-  let id = mapname.gett(this);
-  if (id) console.log(`executed: ${id}.delete(${stringify(key)})`);
-  return this.deletee(key);
-}
-Map.prototype.clearr = Map.prototype.clear;
-Map.prototype.clear = function () {
-  let id = mapname.gett(this);
-  if (id) console.log(`executed: ${id}.clear()`);
-  return this.clearr();
-}
 module.exports = mapname;
